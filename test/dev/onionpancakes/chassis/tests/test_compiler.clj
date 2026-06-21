@@ -252,95 +252,6 @@
   (with-redefs [example-redef "foobarbaz"]
     (is (= (c/html (example-fn-redef)) "<div>foobarbaz</div>"))))
 
-;; Attributes reflection tests
-;; Warnings are emitted at compile time,
-;; so warning detection is a side effect?
-
-(def ambig-attrs-warnings
-  (atom {}))
-
-(defonce track-ambig-attrs-warnings
-  (fn [{::cc/keys [warning form elem] :as msg}]
-    (when (identical? warning :warn-on-ambig-attrs)
-      (swap! ambig-attrs-warnings assoc elem msg))))
-
-(add-tap track-ambig-attrs-warnings)
-
-(do
-  ;; Compile attrs reflection examples
-
-  ;; Tagged literals
-  (cc/compile [:div #inst "2007-01-04"])
-  (cc/compile [:div #uuid "00000000-0000-0000-0000-000000000000"])
-
-  ;; java.util.Map
-  (let [attrs nil]
-    (cc/compile [:div ^java.util.Map attrs "foobar"]))
-  (let [^java.util.Map attrs nil]
-    (cc/compile [:div attrs "foobar"]))
-  (cc/compile [:div ^java.util.Map (:foo {:foo {}}) "foobar"])
-  (defmethod c/resolve-alias ::ReflectiveAttrsAliasMap
-    [_ ^java.util.Map attrs content]
-    (cc/compile [:div attrs content]))
-
-  ;; IPersistentMap
-  (let [attrs nil]
-    (cc/compile [:div ^clojure.lang.IPersistentMap attrs "foobar"]))
-  (let [^clojure.lang.IPersistentMap attrs nil]
-    (cc/compile [:div attrs "foobar"]))
-  (cc/compile [:div ^clojure.lang.IPersistentMap (:foo {:foo {}}) "foobar"])
-  (defmethod c/resolve-alias ::ReflectiveAttrsAliasIPersistentMap
-    [_ ^clojure.lang.IPersistentMap attrs content]
-    (cc/compile [:div attrs content]))
-
-  ;; PersistentArrayMap
-  (let [attrs nil]
-    (cc/compile [:div ^clojure.lang.PersistentArrayMap attrs "foobar"]))
-  (let [^clojure.lang.PersistentArrayMap attrs nil]
-    (cc/compile [:div attrs "foobar"]))
-  (cc/compile [:div ^clojure.lang.PersistentArrayMap (:foo {:foo {}}) "foobar"])
-  (defmethod c/resolve-alias ::ReflectiveAttrsAliasPersistentArrayMap
-    [_ ^clojure.lang.PersistentArrayMap attrs content]
-    (cc/compile [:div attrs content]))
-  
-  ;; Vetted attrs fns
-  (cc/compile [:div (array-map :foo "bar") "foobar"])
-  (cc/compile [:div (hash-map :foo "bar") "foobar"])
-  (cc/compile [:div (sorted-map :foo "bar") "foobar"])
-  (cc/compile [:div (sorted-map-by compare :foo "bar") "foobar"])
-  (cc/compile [:div (assoc {} :foo "bar") "foobar"])
-  (cc/compile [:div (assoc-in {} [:foo :bar] "bar") "foobar"])
-  (cc/compile [:div (merge {} {:foo "bar"}) "foobar"])
-  (cc/compile [:div (select-keys {} [:foo]) "foobar"])
-  (cc/compile [:div (update-keys {} identity) "foobar"])
-  (cc/compile [:div (update-vals {} identity) "foobar"])
-  
-  ;; In thread macro
-  (cc/compile [:div (-> {}
-                        (assoc :foo "bar"))
-               "foobar"])
-  (cc/compile [:div (-> {}
-                        ^java.util.Map (identity))
-               "foobar"])
-  
-  ;; LocalBinded attrs literals
-  #_#_#_#_
-  (let [attrs nil]
-    (cc/compile [:div attrs "foobar"]))
-  (let [attrs {}]
-    (cc/compile [:div attrs "foobar"]))
-  (let [attrs {:foo "bar"}]
-    (cc/compile [:div attrs "foobar"]))
-  (let [attrs {:foo (identity "bar")}]
-    (cc/compile [:div attrs "foobar"]))
-  )
-
-(remove-tap track-ambig-attrs-warnings)
-
-(deftest test-compile-attrs-reflection
-  (doseq [[elem warning] @ambig-attrs-warnings]
-    (is false (str "Ambig attrs with elem: " elem))))
-
 (deftest test-compile-shadow-attrs-core-fns
   (let [assoc (fn [& _] "assoc-shadowed")
         merge (fn [& _] "merge-shadowed")]
@@ -362,3 +273,96 @@
     [::TestAliasContent]
     [::TestAliasContent 0]
     [::TestAliasContent [:span "foobar"]]))
+
+;; Warn on ambig
+
+(deftest test-warn-on-ambig-attrs-on-ambig
+  (are [form] (binding [cc/*warn-on-ambig-attrs* true
+                        *err*                    (java.io.StringWriter.)]
+                (eval `(do
+                         (require '[~'dev.onionpancakes.chassis.core :as ~'c])
+                         (require '[~'dev.onionpancakes.chassis.compiler :as ~'cc])
+                         ~form))
+                (not= (str *err*) ""))
+
+    ;; Syms
+    '(let [attrs nil]
+       (cc/compile [:div attrs]))
+
+    ;; Invocation
+    '(cc/compile [:div (identity {})])))
+
+
+(deftest test-warn-on-ambig-attrs-on-unambig
+  (are [form] (binding [cc/*warn-on-ambig-attrs* true
+                        *err*                    (java.io.StringWriter.)]
+                (eval `(do
+                         (require '[~'dev.onionpancakes.chassis.core :as ~'c])
+                         (require '[~'dev.onionpancakes.chassis.compiler :as ~'cc])
+                         ~form))
+                (= (str *err*) ""))
+
+    ;; Non-attrs
+    '(cc/compile nil)
+    '(cc/compile [:div])
+    '(cc/compile [:div nil])
+    '(cc/compile [:div "foo"])
+
+    ;; Hinted syms
+    '(let [attrs nil]
+       (cc/compile [:div ^java.util.Map attrs]))
+    '(let [attrs nil]
+       (cc/compile [:div ^clojure.lang.IPersistentMap attrs]))
+    '(let [attrs nil]
+       (cc/compile [:div ^clojure.lang.PersistentArrayMap attrs]))
+
+    ;; Hinted invocations
+    '(cc/compile [:div ^java.util.Map (identity {})])
+    '(cc/compile [:div ^clojure.lang.IPersistentMap (identity {})])
+    '(cc/compile [:div ^clojure.lang.PersistentArrayMap (identity {})])
+
+    ;; Vetted attrs fns
+    '(cc/compile [:div (array-map :foo "bar")])
+    '(cc/compile [:div (hash-map :foo "bar")])
+    '(cc/compile [:div (sorted-map :foo "bar")])
+    '(cc/compile [:div (sorted-map-by compare :foo "bar")])
+    '(cc/compile [:div (assoc {} :foo "bar")])
+    '(cc/compile [:div (assoc-in {} [:foo :bar] "bar")])
+    '(cc/compile [:div (merge {} {:foo "bar"})])
+    '(cc/compile [:div (select-keys {} [:foo])])
+    '(cc/compile [:div (update-keys {} identity)])
+    '(cc/compile [:div (update-vals {} identity)])
+
+    ;; In threading macro
+    '(cc/compile [:div (-> {} (assoc :foo :bar))])
+    '(cc/compile [:div (-> {} ^java.util.Map (identity))])
+
+    ;; Let bindings
+    '(let [^java.util.Map attrs {}]
+       (cc/compile [:div attrs]))
+    '(let [^clojure.lang.IPersistentMap attrs {}]
+       (cc/compile [:div attrs]))
+    '(let [^clojure.lang.PersistentArrayMap attrs {}]
+       (cc/compile [:div attrs]))
+
+    ;; Fns
+    '(defn fn-unambig-attrs-map-hint
+       [^java.util.Map attrs]
+       (cc/compile [:div attrs]))
+    '(defn fn-unambig-attrs-ipersistentmap-hint
+       [^clojure.lang.IPersistentMap attrs]
+       (cc/compile [:div attrs]))
+    '(defn fn-unambig-attrs-persistentarraymap-hint
+       [^clojure.lang.PersistentArrayMap attrs]
+       (cc/compile [:div attrs]))
+
+    ;; Alias
+    '(defmethod c/resolve-alias ::AliasUnambigAttrsMapHint
+       [_ ^java.util.Map attrs content]
+       (cc/compile [:div attrs]))
+    '(defmethod c/resolve-alias ::AliasUnambigAttrsIPersistentMapHint
+       [_ ^clojure.lang.IPersistentMap attrs content]
+       (cc/compile [:div attrs]))
+    '(defmethod c/resolve-alias ::AliasUnambigAttrsPersistentArrayMapHint
+       [_ ^clojure.lang.PersistentArrayMap attrs content]
+       (cc/compile [:div attrs]))))
