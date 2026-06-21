@@ -399,10 +399,10 @@
 ;; Warn
 
 (def warn-on-ambig-attrs-msg-format
-  "Compiling element with ambiguous attrs.
-  Namespace: %s
-  Element: %s
-  Within form on line %s, column %s: %s\n\n")
+  "Compiling element with ambiguous attrs warning.
+- Namespace: %s
+- Element: %s
+- Within form on line %s, column %s: %s\n")
 
 (defn print-warn-on-ambig-attrs-msg
   [ns form elem]
@@ -428,11 +428,9 @@
         (println)))))
 
 (defn set-warn-on-ambig-attrs! []
-  #_(add-tap warn-on-ambig-attrs)
   (alter-var-root #'*warn-on-ambig-attrs* (constantly true)))
 
 (defn unset-warn-on-ambig-attrs! []
-  #_(remove-tap warn-on-ambig-attrs)
   (alter-var-root #'*warn-on-ambig-attrs* (constantly false)))
 
 ;; CompilableNode
