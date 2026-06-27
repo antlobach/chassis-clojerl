@@ -288,6 +288,38 @@
   sb)
 
 (extend-protocol AttributeValueFragment
+  java.util.UUID
+  (attribute-value-fragment [this]
+    ;; Not escaped. Should be safe.
+    (.toString this))
+  Short
+  (attribute-value-fragment [this]
+    ;; Not escaped. Should be safe.
+    (.toString this))
+  Integer
+  (attribute-value-fragment [this]
+    ;; Not escaped. Should be safe.
+    (.toString this))
+  Long
+  (attribute-value-fragment [this]
+    ;; Not escaped. Should be safe.
+    (.toString this))
+  Float
+  (attribute-value-fragment [this]
+    ;; Not escaped. Should be safe.
+    (.toString this))
+  Double
+  (attribute-value-fragment [this]
+    ;; Not escaped. Should be safe.
+    (.toString this))
+  clojure.lang.BigInt
+  (attribute-value-fragment [this]
+    ;; Not escaped. Should be safe.
+    (.toString this))
+  clojure.lang.Ratio
+  (attribute-value-fragment [this]
+    ;; Not escaped. Should be safe.
+    (.toString this))
   clojure.lang.Keyword
   (attribute-value-fragment [this]
     (escape-attribute-value-fragment (.toString (.-sym this))))
@@ -309,14 +341,6 @@
     (let [sb (StringBuilder. 64)
           _  (reduce-kv join-attribute-value-fragment-kv sb this)]
       (.toString sb)))
-  java.util.UUID
-  (attribute-value-fragment [this]
-    ;; Not escaped. Should be safe.
-    (.toString this))
-  Number
-  (attribute-value-fragment [this]
-    ;; Not escaped. Should be safe.
-    (.toString this))
   String
   (attribute-value-fragment [this]
     (escape-attribute-value-fragment this))
@@ -833,23 +857,59 @@
   escape-text*)
 
 (extend-protocol Token
-  clojure.lang.Keyword
-  (append-fragment-to [this sb]
-    (append-to sb (escape-text-fragment (.toString (.-sym this)))))
-  (fragment [this]
-    (escape-text-fragment (.toString (.-sym this))))
   java.util.UUID
   (append-fragment-to [this sb]
     ;; Not escaped. Should be safe.
     (append-to sb (.toString this)))
   (fragment [this]
     (.toString this))
-  Number
+  Short
   (append-fragment-to [this sb]
     ;; Not escaped. Should be safe.
     (append-to sb (.toString this)))
   (fragment [this]
     (.toString this))
+  Integer
+  (append-fragment-to [this sb]
+    ;; Not escaped. Should be safe.
+    (append-to sb (.toString this)))
+  (fragment [this]
+    (.toString this))
+  Long
+  (append-fragment-to [this sb]
+    ;; Not escaped. Should be safe.
+    (append-to sb (.toString this)))
+  (fragment [this]
+    (.toString this))
+  Float
+  (append-fragment-to [this sb]
+    ;; Not escaped. Should be safe.
+    (append-to sb (.toString this)))
+  (fragment [this]
+    (.toString this))
+  Double
+  (append-fragment-to [this sb]
+    ;; Not escaped. Should be safe.
+    (append-to sb (.toString this)))
+  (fragment [this]
+    (.toString this))
+  clojure.lang.BigInt
+  (append-fragment-to [this sb]
+    ;; Not escaped. Should be safe.
+    (append-to sb (.toString this)))
+  (fragment [this]
+    (.toString this))
+  clojure.lang.Ratio
+  (append-fragment-to [this sb]
+    ;; Not escaped. Should be safe.
+    (append-to sb (.toString this)))
+  (fragment [this]
+    (.toString this))
+  clojure.lang.Keyword
+  (append-fragment-to [this sb]
+    (append-to sb (escape-text-fragment (.toString (.-sym this)))))
+  (fragment [this]
+    (escape-text-fragment (.toString (.-sym this))))
   String
   (append-fragment-to [this sb]
     (append-to sb (escape-text-fragment this)))

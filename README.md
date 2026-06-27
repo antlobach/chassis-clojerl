@@ -299,7 +299,7 @@ Then use `c/escape-text` and `c/escape-attribute-value` to escape locally.
 
 ### Vetted Unescaped Types
 
-For performance, `java.lang.Number` and `java.util.UUID` are not escaped by default.
+For performance, `java.util.UUID` and final number types such as `Integer`, `Long`, `Float` and `Double` are not escaped by default.
 
 ### Tags and Attribute Keys Are Not Escaped!
 

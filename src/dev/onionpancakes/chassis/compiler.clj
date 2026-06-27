@@ -346,7 +346,8 @@
   BigInteger
   (attrs? [_] false)
   (not-attrs? [_] true)
-  (constant? [_] true)
+  (constant? [this]
+    (identical? (class this) BigInteger)) ;; Derived class may not be immutable.
   (evaluated? [_] true)
   (resolved [this] this)
   Float
@@ -364,7 +365,8 @@
   BigDecimal
   (attrs? [_] false)
   (not-attrs? [_] true)
-  (constant? [_] true)
+  (constant? [this]
+    (identical? (class this) BigDecimal)) ;; Derived class may not be immutable.
   (evaluated? [_] true)
   (resolved [this] this)
   clojure.lang.BigInt

@@ -292,8 +292,13 @@
     [:div {:id "bar"}]                 "<div id=\"bar\"></div>"
     [:div {:id :bar}]                  "<div id=\"bar\"></div>"
     [:div {:id :foo/bar}]              "<div id=\"foo/bar\"></div>"
+    [:div {:id (short 0)}]             "<div id=\"0\"></div>"
+    [:div {:id (int 0)}]               "<div id=\"0\"></div>"
     [:div {:id 0}]                     "<div id=\"0\"></div>"
+    [:div {:id 0N}]                    "<div id=\"0\"></div>"
+    [:div {:id (float 0)}]             "<div id=\"0.0\"></div>"
     [:div {:id 0.0}]                   "<div id=\"0.0\"></div>"
+    [:div {:id 3/2}]                   "<div id=\"3/2\"></div>"
     [:div {:id (java.util.UUID. 0 0)}] "<div id=\"00000000-0000-0000-0000-000000000000\"></div>"
     [:div {:id true}]                  "<div id=\"\"></div>"
     [:div {:id false}]                 "<div></div>"
@@ -305,8 +310,13 @@
     [:div {:class "bar"}]                 "<div class=\"bar\"></div>"
     [:div {:class :bar}]                  "<div class=\"bar\"></div>"
     [:div {:class :foo/bar}]              "<div class=\"foo/bar\"></div>"
+    [:div {:class (short 0)}]             "<div class=\"0\"></div>"
+    [:div {:class (int 0)}]               "<div class=\"0\"></div>"
     [:div {:class 0}]                     "<div class=\"0\"></div>"
+    [:div {:class 0N}]                    "<div class=\"0\"></div>"
+    [:div {:class (float 0)}]             "<div class=\"0.0\"></div>"
     [:div {:class 0.0}]                   "<div class=\"0.0\"></div>"
+    [:div {:class 3/2}]                   "<div class=\"3/2\"></div>"
     [:div {:class (java.util.UUID. 0 0)}] "<div class=\"00000000-0000-0000-0000-000000000000\"></div>"
     [:div {:class true}]                  "<div class=\"\"></div>"
     [:div {:class false}]                 "<div></div>"
@@ -318,8 +328,13 @@
     [:div {:foo "bar"}]                 "<div foo=\"bar\"></div>"
     [:div {:foo :bar}]                  "<div foo=\"bar\"></div>"
     [:div {:foo :foo/bar}]              "<div foo=\"foo/bar\"></div>"
+    [:div {:foo (short 0)}]             "<div foo=\"0\"></div>"
+    [:div {:foo (int 0)}]               "<div foo=\"0\"></div>"
     [:div {:foo 0}]                     "<div foo=\"0\"></div>"
+    [:div {:foo 0N}]                    "<div foo=\"0\"></div>"
+    [:div {:foo (float 0)}]             "<div foo=\"0.0\"></div>"
     [:div {:foo 0.0}]                   "<div foo=\"0.0\"></div>"
+    [:div {:foo 3/2}]                   "<div foo=\"3/2\"></div>"
     [:div {:foo (java.util.UUID. 0 0)}] "<div foo=\"00000000-0000-0000-0000-000000000000\"></div>"
     [:div {:foo true}]                  "<div foo></div>"
     [:div {:foo false}]                 "<div></div>"
@@ -343,6 +358,9 @@
     [:div {:foo (reify Object
                   (toString [_]
                     "< > & \" '"))}] "<div foo=\"&lt; &gt; &amp; &quot; &apos;\"></div>"
+    [:div {:foo (proxy [Number] []
+                  (toString []
+                    "< 1 >"))}]      "<div foo=\"&lt; 1 &gt;\"></div>"
 
     ;; Escapes in class merge
     [(keyword "div.<>&\"'") {:class "<>&\"'"}] "<div class=\"&lt;&gt;&amp;&quot;&apos; &lt;&gt;&amp;&quot;&apos;\"></div>"
@@ -382,18 +400,28 @@
     "foo"                   "foo"
     :foo                    "foo"
     :foo/bar                "foo/bar"
+    (short 0)               "0"
+    (int 0)                 "0"
     0                       "0"
+    0N                      "0"
+    (float 0)               "0.0"
     0.0                     "0.0"
+    0.0M                    "0.0"
+    3/2                     "3/2"
     (java.util.UUID. 0 0)   "00000000-0000-0000-0000-000000000000"
     (reify Object
       (toString [_] "foo")) "foo"
+
     ;; Escapes
-    "< > & \" '"            "&lt; &gt; &amp; \" '"
-    :<>&                    "&lt;&gt;&amp;"
-    :<>&/<>&                "&lt;&gt;&amp;/&lt;&gt;&amp;"
+    "< > & \" '"       "&lt; &gt; &amp; \" '"
+    :<>&               "&lt;&gt;&amp;"
+    :<>&/<>&           "&lt;&gt;&amp;/&lt;&gt;&amp;"
     (reify Object
       (toString [_]
-        "< > & \" '"))      "&lt; &gt; &amp; \" '"))
+        "< > & \" '")) "&lt; &gt; &amp; \" '"
+    (proxy [Number] []
+      (toString []
+        "< 1 >"))      "&lt; 1 &gt;"))
 
 (deftest test-html-nodes
   (are [node s] (= (c/html node) s)
