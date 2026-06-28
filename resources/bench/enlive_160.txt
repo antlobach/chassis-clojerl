@@ -1,14 +1,14 @@
 Enlive Item HTML
 -------------------------------------
-Evaluation count : 10260 in 60 samples of 171 calls.
-             Execution time mean : 5.751570 ms
-    Execution time std-deviation : 51.478286 µs
-   Execution time lower quantile : 5.713720 ms ( 2.5%)
-   Execution time upper quantile : 5.861054 ms (97.5%)
-                   Overhead used : 8.799139 ns
+Evaluation count : 10200 in 60 samples of 170 calls.
+             Execution time mean : 5.769955 ms
+    Execution time std-deviation : 47.086314 µs
+   Execution time lower quantile : 5.735006 ms ( 2.5%)
+   Execution time upper quantile : 5.855497 ms (97.5%)
+                   Overhead used : 8.799044 ns
 
-Found 4 outliers in 60 samples (6.6667 %)
-	low-severe	 2 (3.3333 %)
+Found 5 outliers in 60 samples (8.3333 %)
+	low-severe	 3 (5.0000 %)
 	low-mild	 2 (3.3333 %)
  Variance from outliers : 1.6389 % Variance is slightly inflated by outliers
 
