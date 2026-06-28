@@ -613,22 +613,67 @@
   (is (c/escape-text "foo " "< > & \" ' " 123)
       "foo &lt; &gt; &amp; \" ' 123")
   (are [s expected] (= (c/escape-text s) expected)
-    nil          ""
-    ""           ""
-    0            "0"
-    \<           "&lt;"
-    "< > & \" '" "&lt; &gt; &amp; \" '"))
+    nil ""
+    0   "0"
+    \<  "&lt;"
+    ""  ""
+
+    "&" "&amp;"
+    "<" "&lt;"
+    ">" "&gt;"
+
+    "& <" "&amp; &lt;"
+    "& >" "&amp; &gt;"
+    "< >" "&lt; &gt;"
+
+    "& < >" "&amp; &lt; &gt;"
+    "& < > \" '" "&amp; &lt; &gt; \" '"))
 
 (deftest test-escape-attribute-value
   (is (c/escape-attribute-value) "")
   (is (c/escape-attribute-value "foo " "< > & \" ' " 123)
       "foo &lt; &gt; &amp; &quot; &apos; 123")
   (are [s expected] (= (c/escape-attribute-value s) expected)
-    nil          ""
-    ""           ""
-    0            "0"
-    \<           "&lt;"
-    "< > & \" '" "&lt; &gt; &amp; &quot; &apos;"))
+    nil ""
+    0   "0"
+    \<  "&lt;"
+    ""  ""
+
+    "&"  "&amp;"
+    "<"  "&lt;"
+    ">"  "&gt;"
+    "\"" "&quot;"
+    "'"  "&apos;"
+
+    "& <"  "&amp; &lt;"
+    "& >"  "&amp; &gt;"
+    "& \"" "&amp; &quot;"
+    "& '"  "&amp; &apos;"
+    "< >"  "&lt; &gt;"
+    "< \"" "&lt; &quot;"
+    "< '"  "&lt; &apos;"
+    "> \"" "&gt; &quot;"
+    "> '"  "&gt; &apos;"
+    "\" '" "&quot; &apos;"
+
+    "& < >"  "&amp; &lt; &gt;"
+    "& < \"" "&amp; &lt; &quot;"
+    "& < '"  "&amp; &lt; &apos;"
+    "& > \"" "&amp; &gt; &quot;"
+    "& > '"  "&amp; &gt; &apos;"
+    "& \" '" "&amp; &quot; &apos;"
+    "< > \"" "&lt; &gt; &quot;"
+    "< > '"  "&lt; &gt; &apos;"
+    "< \" '" "&lt; &quot; &apos;"
+    "> \" '" "&gt; &quot; &apos;"
+
+    "< > \" '" "&lt; &gt; &quot; &apos;"
+    "& > \" '" "&amp; &gt; &quot; &apos;"
+    "& < \" '" "&amp; &lt; &quot; &apos;"
+    "& < > '"  "&amp; &lt; &gt; &apos;"
+    "& < > \"" "&amp; &lt; &gt; &quot;"
+
+    "& < > \" '" "&amp; &lt; &gt; &quot; &apos;"))
 
 (deftest test-apply-normalized
   (are [elem] (let [norm (c/apply-normalized vector elem)]

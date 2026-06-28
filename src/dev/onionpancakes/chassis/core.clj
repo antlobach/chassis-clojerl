@@ -235,12 +235,144 @@
   "Escapes an attribute value string. Escapes &, <, >, \", and '."
   {:tag String}
   [^String s]
-  (.. s
-      (replace "&" "&amp;")
-      (replace "<" "&lt;")
-      (replace ">" "&gt;")
-      (replace "\"" "&quot;")
-      (replace "'" "&apos;")))
+  (if (neg? (.indexOf s 38 #_(int \&)))
+    (if (neg? (.indexOf s 60 #_(int \<)))
+      (if (neg? (.indexOf s 62 #_(int \>)))
+        (if (neg? (.indexOf s 34 #_(int \")))
+          (if (neg? (.indexOf s 39 #_(int \')))
+            s
+            (.. s (replace "'" "&apos;")))
+          (if (neg? (.indexOf s 39 #_(int \')))
+            (.. s (replace "\"" "&quot;"))
+            (.. s
+                (replace "\"" "&quot;")
+                (replace "'" "&apos;"))))
+        (if (neg? (.indexOf s 34 #_(int \")))
+          (if (neg? (.indexOf s 39 #_(int \')))
+            (.. s (replace ">" "&gt;"))
+            (.. s
+                (replace ">" "&gt;")
+                (replace "'" "&apos;")))
+          (if (neg? (.indexOf s 39 #_(int \')))
+            (.. s
+                (replace ">" "&gt;")
+                (replace "\"" "&quot;"))
+            (.. s
+                (replace ">" "&gt;")
+                (replace "\"" "&quot;")
+                (replace "'" "&apos;")))))
+      (if (neg? (.indexOf s 62 #_(int \>)))
+        (if (neg? (.indexOf s 34 #_(int \")))
+          (if (neg? (.indexOf s 39 #_(int \')))
+            (.. s (replace "<" "&lt;"))
+            (.. s
+                (replace "<" "&lt;")
+                (replace "'" "&apos;")))
+          (if (neg? (.indexOf s 39 #_(int \')))
+            (.. s
+                (replace "<" "&lt;")
+                (replace "\"" "&quot;"))
+            (.. s
+                (replace "<" "&lt;")
+                (replace "\"" "&quot;")
+                (replace "'" "&apos;"))))
+        (if (neg? (.indexOf s 34 #_(int \")))
+          (if (neg? (.indexOf s 39 #_(int \')))
+            (.. s
+                (replace "<" "&lt;")
+                (replace ">" "&gt;"))
+            (.. s
+                (replace "<" "&lt;")
+                (replace ">" "&gt;")
+                (replace "'" "&apos;")))
+          (if (neg? (.indexOf s 39 #_(int \')))
+            (.. s
+                (replace "<" "&lt;")
+                (replace ">" "&gt;")
+                (replace "\"" "&quot;"))
+            (.. s
+                (replace "<" "&lt;")
+                (replace ">" "&gt;")
+                (replace "\"" "&quot;")
+                (replace "'" "&apos;"))))))
+    (if (neg? (.indexOf s 60 #_(int \<)))
+      (if (neg? (.indexOf s 62 #_(int \>)))
+        (if (neg? (.indexOf s 34 #_(int \")))
+          (if (neg? (.indexOf s 39 #_(int \')))
+            (.. s (replace "&" "&amp;"))
+            (.. s
+                (replace "&" "&amp;")
+                (replace "'" "&apos;")))
+          (if (neg? (.indexOf s 39 #_(int \')))
+            (.. s
+                (replace "&" "&amp;")
+                (replace "\"" "&quot;"))
+            (.. s
+                (replace "&" "&amp;")
+                (replace "\"" "&quot;")
+                (replace "'" "&apos;"))))
+        (if (neg? (.indexOf s 34 #_(int \")))
+          (if (neg? (.indexOf s 39 #_(int \')))
+            (.. s
+                (replace "&" "&amp;")
+                (replace ">" "&gt;"))
+            (.. s
+                (replace "&" "&amp;")
+                (replace ">" "&gt;")
+                (replace "'" "&apos;")))
+          (if (neg? (.indexOf s 39 #_(int \')))
+            (.. s
+                (replace "&" "&amp;")
+                (replace ">" "&gt;")
+                (replace "\"" "&quot;"))
+            (.. s
+                (replace "&" "&amp;")
+                (replace ">" "&gt;")
+                (replace "\"" "&quot;")
+                (replace "'" "&apos;")))))
+      (if (neg? (.indexOf s 62 #_(int \>)))
+        (if (neg? (.indexOf s 34 #_(int \")))
+          (if (neg? (.indexOf s 39 #_(int \')))
+            (.. s
+                (replace "&" "&amp;")
+                (replace "<" "&lt;"))
+            (.. s
+                (replace "&" "&amp;")
+                (replace "<" "&lt;")
+                (replace "'" "&apos;")))
+          (if (neg? (.indexOf s 39 #_(int \')))
+            (.. s
+                (replace "&" "&amp;")
+                (replace "<" "&lt;")
+                (replace "\"" "&quot;"))
+            (.. s
+                (replace "&" "&amp;")
+                (replace "<" "&lt;")
+                (replace "\"" "&quot;")
+                (replace "'" "&apos;"))))
+        (if (neg? (.indexOf s 34 #_(int \")))
+          (if (neg? (.indexOf s 39 #_(int \')))
+            (.. s
+                (replace "&" "&amp;")
+                (replace "<" "&lt;")
+                (replace ">" "&gt;"))
+            (.. s
+                (replace "&" "&amp;")
+                (replace "<" "&lt;")
+                (replace ">" "&gt;")
+                (replace "'" "&apos;")))
+          (if (neg? (.indexOf s 39 #_(int \')))
+            (.. s
+                (replace "&" "&amp;")
+                (replace "<" "&lt;")
+                (replace ">" "&gt;")
+                (replace "\"" "&quot;"))
+            (.. s
+                (replace "&" "&amp;")
+                (replace "<" "&lt;")
+                (replace ">" "&gt;")
+                (replace "\"" "&quot;")
+                (replace "'" "&apos;"))))))))
 
 (defn escape-attribute-value
   "Escape as an attribute value string. Escapes &, <, >, \", and '."
@@ -836,10 +968,30 @@
   "Escapes a text string. Escapes &, <, and >."
   {:tag String}
   [^String s]
-  (.. s
-      (replace "&" "&amp;")
-      (replace "<" "&lt;")
-      (replace ">" "&gt;")))
+  (if (neg? (.indexOf s 38 #_(int \&)))
+    (if (neg? (.indexOf s 60 #_(int \<)))
+      (if (neg? (.indexOf s 62 #_(int \>)))
+        s
+        (.. s (replace ">" "&gt;")))
+      (if (neg? (.indexOf s 62 #_(int \>)))
+        (.. s (replace "<" "&lt;"))
+        (.. s
+            (replace "<" "&lt;")
+            (replace ">" "&gt;"))))
+    (if (neg? (.indexOf s 60 #_(int \<)))
+      (if (neg? (.indexOf s 62 #_(int \>)))
+        (.. s (replace "&" "&amp;"))
+        (.. s
+            (replace "&" "&amp;")
+            (replace ">" "&gt;")))
+      (if (neg? (.indexOf s 62 #_(int \>)))
+        (.. s
+            (replace "&" "&amp;")
+            (replace "<" "&lt;"))
+        (.. s
+            (replace "&" "&amp;")
+            (replace "<" "&lt;")
+            (replace ">" "&gt;"))))))
 
 (defn escape-text
   "Escape as a text string. Escapes &, <, and >."
