@@ -4,7 +4,7 @@ Runnable Clojerl 0.9.1 application that renders a Tailwind-styled page with Chas
 
 ## Run
 
-The repository expects the OTP 28-compatible Clojerl checkout at `../clojerl` relative to the Chassis repository:
+The repository expects the OTP 27/28-compatible Clojerl checkout at `../clojerl` relative to the Chassis repository:
 
 ```sh
 git clone --branch 0.9.1 --depth 1 \

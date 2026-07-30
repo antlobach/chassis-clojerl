@@ -1,10 +1,10 @@
 # Clojerl projects
 
-This guide creates a Clojerl 0.9.1 project, opens its REPL, and runs the Chassis Cowboy example on Erlang/OTP 28.
+This guide creates a Clojerl 0.9.1 project, opens its REPL, and runs the Chassis Cowboy example on Erlang/OTP 27 or 28.
 
 ## Requirements
 
-Install Erlang/OTP 28 and Rebar3 3.27 or newer. Clojerl 0.9.1 lives in the OTP 28-compatible fork:
+Install Erlang/OTP 27 or 28 and Rebar3 3.27 or newer. Clojerl 0.9.1 lives in the compatible fork:
 
 ```sh
 git clone --branch 0.9.1 --depth 1 \
@@ -21,7 +21,7 @@ Confirm the runtime:
 Expected version lines:
 
 ```text
-Erlang/OTP 28
+Erlang/OTP 27 or 28
 Clojerl 0.9.1
 ```
 
@@ -101,7 +101,7 @@ hello.core=> (greeting "BEAM")
 
 The runnable project in [`examples/cowboy`](../examples/cowboy/) uses:
 
-- Clojerl 0.9.1 on OTP 28
+- Clojerl 0.9.1 on OTP 27 or 28
 - Chassis for server-rendered HTML
 - Cowboy 2.13 for HTTP
 - Tailwind CSS Play CDN for the example page

@@ -9,4 +9,6 @@
     (is (string/starts-with? html "<!DOCTYPE html>"))
     (is (some? (string/index-of html "@tailwindcss/browser@4")))
     (is (some? (string/index-of html "HTML as data")))
-    (is (some? (string/index-of html "Rendered by Chassis")))))
+    (is (some? (string/index-of html "Rendered by Chassis")))
+    (is (some? (string/index-of html "OTP 27 / 28 ready")))
+    (is (some? (string/index-of html "Erlang/OTP 27 and 28")))))

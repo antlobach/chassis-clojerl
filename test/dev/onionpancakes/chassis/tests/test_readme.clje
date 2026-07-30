@@ -1,0 +1,126 @@
+(ns dev.onionpancakes.chassis.tests.test-readme
+  (:require [clojure.test :refer [deftest is]]
+            [dev.onionpancakes.chassis.compiler :as cc]
+            [dev.onionpancakes.chassis.core :as c]))
+
+(defn my-post [post]
+  [:div {:id (:id post)}
+   [:h2.title (:title post)]
+   [:p.content (:content post)]])
+
+(defn my-blog [data]
+  [c/doctype-html5
+   [:html
+    [:head
+     [:link {:href "/css/styles.css" :rel "stylesheet"}]
+     [:title "My Blog"]]
+    [:body
+     [:h1 "My Blog"]
+     (for [post (:posts data)]
+       (my-post post))]]])
+
+(defn my-post-compiled [post]
+  (cc/compile
+    [:div {:id (:id post)}
+     [:h2.title (:title post)]
+     [:p.content (:content post)]]))
+
+(defn my-blog-compiled [data]
+  (cc/compile
+    [c/doctype-html5
+     [:html
+      [:head
+       [:link {:href "/css/styles.css" :rel "stylesheet"}]
+       [:title "My Blog"]]
+      [:body
+       [:h1 "My Blog"]
+       (for [post (:posts data)]
+         (my-post-compiled post))]]]))
+
+(defmethod c/resolve-alias ::Layout
+  [_ {:layout/keys [title] :as attrs} content]
+  [:div.layout attrs
+   [:h1 title]
+   [:main content]
+   [:footer "Some footer message."]])
+
+(def blog-html
+  "<!DOCTYPE html><html><head><link href=\"/css/styles.css\" rel=\"stylesheet\"><title>My Blog</title></head><body><h1>My Blog</h1><div id=\"1\"><h2 class=\"title\">foo</h2><p class=\"content\">bar</p></div></body></html>")
+
+(deftest readme-blog-examples
+  (let [data {:posts [{:id "1" :title "foo" :content "bar"}]}]
+    (is (= blog-html (c/html (my-blog data))))
+    (is (= blog-html (c/html (my-blog-compiled data))))))
+
+(deftest readme-element-examples
+  (is (= "<div>foo</div>" (c/html [:div "foo"])))
+  (is (= "<div id=\"my-id\">foo</div>" (c/html [:div {:id "my-id"} "foo"])))
+  (is (= "<div id=\"my-id\">foo</div>" (c/html [:div {"id" "my-id"} "foo"])))
+  (is (= "<div id=\"my-id\">foo012bar</div>"
+         (c/html [:div {:id "my-id"} "foo" (range 3) "bar"])))
+  (is (= "<div id=\"my-id\" class=\"my-class\">foo</div>"
+         (c/html [:div#my-id.my-class "foo"])))
+  (is (= "<div class=\"my-class-1 my-class-2\">foo</div>"
+         (c/html [:div.my-class-1 {:class "my-class-2"} "foo"])))
+  (is (= "<button disabled>Submit</button>"
+         (c/html [:button {:disabled true} "Submit"])))
+  (is (= "<button>Submit</button>"
+         (c/html [:button {:disabled false} "Submit"]))))
+
+(deftest readme-attribute-examples
+  (is (= "<div class=\"foo bar\"></div>"
+         (c/html [:div {:class ["foo" "bar"]}])))
+  (is (= "<div style=\"border: 1px solid black; color: red;\"></div>"
+         (c/html [:div {:style {:color :red :border "1px solid black"}}])))
+  (is (= "<div style=\"border: 1px solid black; color: red;\"></div>"
+         (c/html [:div {:style {:color :red :border [:1px :solid :black]}}]))))
+
+(deftest readme-writer-example
+  (let [writer (new erlang.io.StringWriter)]
+    (c/write-html writer [:div "foo"])
+    (is (= "<div>foo</div>" (str writer)))))
+
+(deftest readme-escape-examples
+  (is (= "<div>&amp; &lt; &gt;</div>" (c/html [:div "& < >"])))
+  (is (= "<div foo=\"&amp; &lt; &gt; &quot; &apos;\"></div>"
+         (c/html [:div {:foo "& < > \" '"}])))
+  (is (= "<div><p>foo</p></div>" (c/html [:div (c/raw "<p>foo</p>")])))
+  (is (= "foo &amp; bar" (c/escape-text "foo & bar")))
+  (is (= "foo &amp; &quot;bar&quot;"
+         (c/escape-attribute-value "foo & \"bar\""))))
+
+(deftest readme-content-and-alias-examples
+  (is (= "012" (c/html [0 1 2])))
+  (is (= "foobar" (c/html ["foo" "bar"])))
+  (is (= "foobar" (c/html ^::c/content [:foo :bar])))
+  (is (= "<div>foo</div><div>bar</div>"
+         (c/html [[:div "foo"] [:div "bar"]])))
+  (is (= "<div></div>" (c/html [:div {:foo/bar "not here!"}])))
+  (is (= "<div id=\"blog\" class=\"layout dark\"><h1>My title!</h1><main><p>My content!</p></main><footer>Some footer message.</footer></div>"
+         (c/html [::Layout#blog.dark {:layout/title "My title!"}
+                  [:p "My content!"]]))))
+
+(deftest readme-stateful-and-serializer-examples
+  (let [delayed-thing (delay "delayed")]
+    (is (= "<div foo=\"delayed\"></div>"
+           (c/html [:div {:foo delayed-thing}]))))
+  (is (= "<div class=\"parent\"><p>Child element</p></div>"
+         (c/html [:div.parent (fn [] [:p "Child element"])])))
+  (is (= ["<div>" "foo" "</div>"]
+         (->> (c/token-serializer [:div "foo"])
+              (map c/fragment)
+              (vec))))
+  (is (= ["<div>" "foo" "</div>"]
+         (vec (c/html-serializer [:div "foo"]))))
+  (is (= "<!DOCTYPE html><html>...</html>"
+         (c/html [c/doctype-html5 [:html "..."]])))
+  (is (= "<div>foo&nbsp;bar</div>"
+         (c/html [:div "foo" c/nbsp "bar"]))))
+
+(deftest readme-runtime-compaction-examples
+  (is (= "<div>ready</div>" (c/html (cc/compile [:div "ready"]))))
+  (let [message (atom "ready")]
+    (is (= "<p>ready</p>" (c/html (cc/compile [:p message])))))
+  (let [node [:section [:h2 "Status"] [:p "ready"]]]
+    (is (= "<section><h2>Status</h2><p>ready</p></section>"
+           (c/html (cc/compile-node node))))))
