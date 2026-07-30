@@ -2,6 +2,10 @@
   (:require [dev.onionpancakes.chassis.core :as c]
             [clojure.test :refer [deftest are is]]))
 
+(deftype TestStringable [value]
+  clojerl.IStringable
+  (str [_] value))
+
 (deftest test-html
   (are [node s] (= (c/html node) s)
     ;; Primitives, non-elements
@@ -294,7 +298,7 @@
     [:div {:id :foo/bar}]              "<div id=\"foo/bar\"></div>"
     [:div {:id 0}]                     "<div id=\"0\"></div>"
     [:div {:id 0.0}]                   "<div id=\"0.0\"></div>"
-    [:div {:id (java.util.UUID. 0 0)}] "<div id=\"00000000-0000-0000-0000-000000000000\"></div>"
+    [:div {:id #uuid "00000000-0000-0000-0000-000000000000"}] "<div id=\"00000000-0000-0000-0000-000000000000\"></div>"
     [:div {:id true}]                  "<div id=\"\"></div>"
     [:div {:id false}]                 "<div></div>"
     [:div {:id (delay "bar")}]         "<div id=\"bar\"></div>"
@@ -307,7 +311,7 @@
     [:div {:class :foo/bar}]              "<div class=\"foo/bar\"></div>"
     [:div {:class 0}]                     "<div class=\"0\"></div>"
     [:div {:class 0.0}]                   "<div class=\"0.0\"></div>"
-    [:div {:class (java.util.UUID. 0 0)}] "<div class=\"00000000-0000-0000-0000-000000000000\"></div>"
+    [:div {:class #uuid "00000000-0000-0000-0000-000000000000"}] "<div class=\"00000000-0000-0000-0000-000000000000\"></div>"
     [:div {:class true}]                  "<div class=\"\"></div>"
     [:div {:class false}]                 "<div></div>"
     [:div {:class (delay "bar")}]         "<div class=\"bar\"></div>"
@@ -320,7 +324,7 @@
     [:div {:foo :foo/bar}]              "<div foo=\"foo/bar\"></div>"
     [:div {:foo 0}]                     "<div foo=\"0\"></div>"
     [:div {:foo 0.0}]                   "<div foo=\"0.0\"></div>"
-    [:div {:foo (java.util.UUID. 0 0)}] "<div foo=\"00000000-0000-0000-0000-000000000000\"></div>"
+    [:div {:foo #uuid "00000000-0000-0000-0000-000000000000"}] "<div foo=\"00000000-0000-0000-0000-000000000000\"></div>"
     [:div {:foo true}]                  "<div foo></div>"
     [:div {:foo false}]                 "<div></div>"
     [:div {:foo (delay "bar")}]         "<div foo=\"bar\"></div>"
@@ -340,9 +344,7 @@
     [:div {:foo "< > & \" '"}]       "<div foo=\"&lt; &gt; &amp; &quot; &apos;\"></div>"
     [:div {:foo :<>&'}]              "<div foo=\"&lt;&gt;&amp;&apos;\"></div>"
     [:div {:foo :<>&'/<>&'}]         "<div foo=\"&lt;&gt;&amp;&apos;/&lt;&gt;&amp;&apos;\"></div>"
-    [:div {:foo (reify Object
-                  (toString [_]
-                    "< > & \" '"))}] "<div foo=\"&lt; &gt; &amp; &quot; &apos;\"></div>"
+    [:div {:foo (->TestStringable "< > & \" '")}] "<div foo=\"&lt; &gt; &amp; &quot; &apos;\"></div>"
 
     ;; Escapes in class merge
     [(keyword "div.<>&\"'") {:class "<>&\"'"}] "<div class=\"&lt;&gt;&amp;&quot;&apos; &lt;&gt;&amp;&quot;&apos;\"></div>"
@@ -384,46 +386,32 @@
     :foo/bar                "foo/bar"
     0                       "0"
     0.0                     "0.0"
-    (java.util.UUID. 0 0)   "00000000-0000-0000-0000-000000000000"
-    (reify Object
-      (toString [_] "foo")) "foo"
+    #uuid "00000000-0000-0000-0000-000000000000" "00000000-0000-0000-0000-000000000000"
+    (->TestStringable "foo") "foo"
     ;; Escapes
     "< > & \" '"            "&lt; &gt; &amp; \" '"
     :<>&                    "&lt;&gt;&amp;"
     :<>&/<>&                "&lt;&gt;&amp;/&lt;&gt;&amp;"
-    (reify Object
-      (toString [_]
-        "< > & \" '"))      "&lt; &gt; &amp; \" '"))
+    (->TestStringable "< > & \" '") "&lt; &gt; &amp; \" '"))
 
 (deftest test-html-nodes
   (are [node s] (= (c/html node) s)
     [:div]                                   "<div></div>"
-    (reify clojure.lang.IPersistentVector
-      (count [_] 1)
-      (seq [_] '(:div))
-      (nth [_ i] (if (zero? i) :div))
-      (nth [_ i nf] (if (zero? i) :div nf))) "<div></div>"
-    ^::c/content
-    (reify clojure.lang.IPersistentVector
-      (count [_] 1)
-      (seq [_] '(:div))
-      (nth [_ i] (if (zero? i) :div))
-      (nth [_ i nf] (if (zero? i) :div nf))) "div"
     '(:div)                                  "div"
     (seq [:div])                             "div"
-    (reify clojure.lang.ISeq
+    (reify clojerl.ISeqable
+      (to_list [_] #erl(:div))
       (seq [_] '(:div)))                     "div"
     (eduction (map inc)
               (range 5))                     "12345"
     (delay :div)                             "div"
     (fn [] :div)                             "div"
-    (reify Object
-      (toString [_] "div"))                  "div"
+    (->TestStringable "div")                 "div"
     nil                                      ""))
 
 (deftest test-html-deref-node-derefed-once
   (let [counter (atom 0)
-        node    (reify clojure.lang.IDeref
+        node    (reify clojerl.IDeref
                   (deref [this]
                     (swap! counter inc)))]
     (is (= (c/html node) "1"))
@@ -445,10 +433,9 @@
 
 (defmethod c/resolve-alias ::Recursive
   [_ {::keys [idx] :as attrs} content]
-  (let [idx (long idx)]
-    (if (and idx (>= idx 0))
-      [:div {:id idx}
-       [::Recursive {::idx (dec idx)}]])))
+  (when (and idx (>= idx 0))
+    [:div {:id idx}
+     [::Recursive {::idx (dec idx)}]]))
 
 (deftest test-html-alias
   (are [node s] (= (c/html node) s)
