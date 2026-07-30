@@ -11,7 +11,7 @@
     :copy "Send Chassis output as an Erlang binary through Cowboy's production HTTP stack."
     :accent "from-violet-400 to-fuchsia-500"}
    {:eyebrow "Run"
-    :title "OTP 28"
+    :title "OTP 27 + 28"
     :copy "Keep Clojure's data model while using BEAM supervision, processes, and fault isolation."
     :accent "from-emerald-400 to-teal-500"}])
 
@@ -45,7 +45,7 @@
         [:span "Chassis"]]
        [:div {:class "flex items-center gap-2 rounded-full border border-emerald-300/20 bg-emerald-300/10 px-4 py-2 text-xs font-medium text-emerald-200"}
         [:span {:class "size-2 rounded-full bg-emerald-300 shadow-[0_0_14px_rgba(110,231,183,0.8)]"}]
-        "OTP 28 ready"]]
+        "OTP 27 / 28 ready"]]
 
       [:section {:class "grid flex-1 items-center gap-14 py-20 lg:grid-cols-[1.15fr_0.85fr] lg:py-28"}
        [:div
@@ -88,7 +88,7 @@
 
       [:footer {:class "flex flex-col gap-2 border-t border-white/10 py-7 text-sm text-slate-500 sm:flex-row sm:items-center sm:justify-between"}
        [:p "Rendered by Chassis. Served by Cowboy."]
-       [:p "Clojerl 0.9.1 on Erlang/OTP 28"]]]]]])
+       [:p "Clojerl 0.9.1 on Erlang/OTP 27 and 28"]]]]]])
 
 (defn init [request state]
   (let [body (chassis/html (page))

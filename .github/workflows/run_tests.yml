@@ -10,6 +10,11 @@ permissions:
 
 jobs:
   run-tests:
+    name: OTP ${{ matrix.otp-version }}
+    strategy:
+      fail-fast: false
+      matrix:
+        otp-version: ['27.3.4.15', '28.0']
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -17,10 +22,10 @@ jobs:
 
       - uses: erlef/setup-beam@v1
         with:
-          otp-version: '28.0'
+          otp-version: ${{ matrix.otp-version }}
           rebar3-version: '3.27.0'
 
-      - name: Build OTP 28-compatible Clojerl
+      - name: Build compatible Clojerl
         run: |
           git clone --branch 0.9.1 --depth 1 https://github.com/antlobach/clojerl.git ../clojerl
           make -C ../clojerl compile

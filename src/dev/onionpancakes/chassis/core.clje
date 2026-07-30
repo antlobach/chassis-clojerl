@@ -242,7 +242,9 @@
     (->OpeningTag metadata tag head-id head-class attrs)))
 
 (defn attrs? [attrs]
-  (or (map? attrs) (nil? attrs)))
+  (or (nil? attrs)
+      (and (map? attrs)
+           (not (instance? dev.onionpancakes.chassis.core.RawString attrs)))))
 
 (defn has-attrs? [elem]
   (attrs? (nth elem 1 ::none)))
