@@ -4,6 +4,11 @@
 
 Chassis renders Hiccup-style vectors to HTML on the Erlang VM. This port targets Clojerl `0.9.1` and Erlang/OTP 28.
 
+## Guides
+
+- [Create a Clojerl project and start the REPL](docs/projects.md)
+- [Run the Chassis, Cowboy, and Tailwind example](examples/cowboy/)
+
 ## Setup
 
 Keep the OTP 28-compatible Clojerl checkout next to this repository:
@@ -105,6 +110,8 @@ Chassis passes alias content as a vector marked with `::c/content` metadata. Ali
 
 ## License
 
-Copyright © 2022–2026 onionpancakes and contributors.
+Copyright 2024 Gordon Lin.
 
-Distributed under the Eclipse Public License 2.0. See `LICENSE`.
+Distributed under the MIT License. See `LICENSE`.
+
+This fork preserves the original Chassis copyright notice and MIT permission text unchanged. Clojerl, Cowboy, and Tailwind CSS remain external dependencies under their respective licenses.

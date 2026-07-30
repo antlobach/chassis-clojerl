@@ -1,0 +1,6 @@
+{application, chassis_cowboy,
+ [{vsn, "0.1.0"},
+  {description, "Clojerl, Chassis, Cowboy, and Tailwind CSS example"},
+  {modules, []},
+  {applications, [kernel, stdlib, clojerl, ranch, cowlib, cowboy, chassis]},
+  {mod, {'chassis-cowboy.app', []}}]}.

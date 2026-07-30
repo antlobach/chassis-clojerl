@@ -1,0 +1,35 @@
+(ns chassis-cowboy.app
+  (:require [chassis-cowboy.sup :as sup]))
+
+(def listener :chassis-cowboy.http)
+(def port 8080)
+
+(defn ->list [value]
+  (clj_rt/to_list.1 value))
+
+(defn ->proplist [value]
+  (->list (map into-tuple value)))
+
+(def routes
+  {:_ [["/" :chassis-cowboy.handler nil]]})
+
+(defn route->cowboy [[host handlers]]
+  #erl[host (->list (map into-tuple handlers))])
+
+(defn start-cowboy! []
+  (let [dispatch (->> routes
+                      (map route->cowboy)
+                      ->list
+                      cowboy_router/compile)
+        transport-options (->proplist {:port port})
+        protocol-options #erl{:env #erl{:dispatch dispatch}}]
+    (println (str "Starting Chassis Cowboy example on http://localhost:" port))
+    (#erl cowboy/start_clear listener transport-options protocol-options)))
+
+(defn start [_type _args]
+  (start-cowboy!)
+  (sup/start-link))
+
+(defn stop [_state]
+  (#erl cowboy/stop_listener listener)
+  :ok)

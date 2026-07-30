@@ -1,0 +1,12 @@
+(ns chassis-cowboy.sup)
+
+(defn start-link []
+  (supervisor/start_link #erl[:local :chassis-cowboy.sup]
+                         :chassis-cowboy.sup
+                         #erl()))
+
+(defn init [_args]
+  (let [flags #erl{:strategy :one_for_one
+                   :intensity 1
+                   :period 5}]
+    #erl[:ok #erl[flags #erl()]]))
