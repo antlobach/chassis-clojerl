@@ -22,8 +22,7 @@ jobs:
 
       - name: Build OTP 28-compatible Clojerl
         run: |
-          git clone https://github.com/antlobach/clojerl.git ../clojerl
-          git -C ../clojerl checkout ab2c83183fd6156ffe9c43bfcb2c3cc075f5e31f
+          git clone --branch 0.9.1 --depth 1 https://github.com/antlobach/clojerl.git ../clojerl
           make -C ../clojerl compile
 
       - name: Run Chassis tests
