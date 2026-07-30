@@ -1,0 +1,12 @@
+(ns chassis-cowboy.handler-test
+  (:require [chassis-cowboy.handler :as handler]
+            [clojure.string :as string]
+            [clojure.test :refer [deftest is]]
+            [dev.onionpancakes.chassis.core :as chassis]))
+
+(deftest renders-complete-tailwind-page
+  (let [html (chassis/html (handler/page))]
+    (is (string/starts-with? html "<!DOCTYPE html>"))
+    (is (some? (string/index-of html "@tailwindcss/browser@4")))
+    (is (some? (string/index-of html "HTML as data")))
+    (is (some? (string/index-of html "Rendered by Chassis")))))
