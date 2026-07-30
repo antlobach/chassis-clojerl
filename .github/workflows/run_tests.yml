@@ -1,28 +1,30 @@
 name: Run tests
-on: [push]
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
 jobs:
   run-tests:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v5
-      - uses: actions/setup-java@v5
-        with:
-          distribution: 'temurin'
-          java-version: '8'
-      - uses: DeLaGuardo/setup-clojure@13.4
-        with:
-          cli: 1.12.4.1582
 
-      - name: Deps cache
-        uses: actions/cache@v5
+      - uses: erlef/setup-beam@v1
         with:
-          path: |
-            ~/.m2
-            ~/.gitlibs
-          key: ${{ runner.os }}-deps-${{ hashFiles('**/deps.edn') }}
+          otp-version: '28.0'
+          rebar3-version: '3.27.0'
 
-      - name: Install deps
-        run: clojure -A:run-tests -P
+      - name: Build OTP 28-compatible Clojerl
+        run: |
+          git clone https://github.com/antlobach/clojerl.git ../clojerl
+          git -C ../clojerl checkout ab2c83183fd6156ffe9c43bfcb2c3cc075f5e31f
+          make -C ../clojerl compile
 
-      - name: Run tests
-        run: clojure -X:run-tests
+      - name: Run Chassis tests
+        run: make test

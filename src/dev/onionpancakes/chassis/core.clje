@@ -1,0 +1,404 @@
+(ns dev.onionpancakes.chassis.core
+  (:require [clojure.string :as string]))
+
+(defprotocol AttributeValue
+  (append-attribute-fragment-to [this writer attr-name]
+    "Appends an attribute key and value HTML fragment."))
+
+(defprotocol AttributeValueFragment
+  (attribute-value-fragment [this]
+    "Returns an attribute value HTML fragment or nil if none."))
+
+(defprotocol Token
+  (append-fragment-to [this writer] "Appends an HTML fragment.")
+  (fragment [this] "Returns an HTML fragment."))
+
+(defprotocol Node
+  (branch? [this] "Returns true for a branch node.")
+  (children [this] "Returns the node's children."))
+
+(defmulti resolve-alias
+  "Resolves an alias given its tag, attributes, and content."
+  (fn [tag _ _] tag))
+
+(defn append-to-appendable
+  "Writes string fragments to an erlang.io.IWriter."
+  ([writer] writer)
+  ([writer value & more]
+   (.write ^erlang.io.IWriter writer (str value))
+   (doseq [item more]
+     (.write ^erlang.io.IWriter writer (str item)))
+   writer))
+
+(def append-to
+  "Function used for fragment writes. Rebind to support another target type."
+  append-to-appendable)
+
+(defn keyword-string [value]
+  (if-let [ns-name (namespace value)]
+    (str ns-name "/" (name value))
+    (name value)))
+
+(defn escape-attribute-value* [value]
+  (-> value
+      (string/replace "&" "&amp;")
+      (string/replace "<" "&lt;")
+      (string/replace ">" "&gt;")
+      (string/replace "\"" "&quot;")
+      (string/replace "'" "&apos;")))
+
+(defn escape-attribute-value
+  "Escapes &, <, >, double quote, and single quote."
+  ([] "")
+  ([value] (escape-attribute-value* (str value)))
+  ([value & more] (escape-attribute-value* (apply str value more))))
+
+(def escape-attribute-value-fragment escape-attribute-value*)
+
+(defn escape-text* [value]
+  (-> value
+      (string/replace "&" "&amp;")
+      (string/replace "<" "&lt;")
+      (string/replace ">" "&gt;")))
+
+(defn escape-text
+  "Escapes &, <, and > in text content."
+  ([] "")
+  ([value] (escape-text* (str value)))
+  ([value & more] (escape-text* (apply str value more))))
+
+(def escape-text-fragment escape-text*)
+
+(defrecord RawString [value]
+  AttributeValueFragment
+  (attribute-value-fragment [_] value)
+  Token
+  (append-fragment-to [_ writer] (append-to writer value))
+  (fragment [_] value))
+
+(defn raw-string
+  "Wraps values as unescaped text."
+  ([] (->RawString ""))
+  ([value] (->RawString (str value)))
+  ([value & more] (->RawString (apply str value more))))
+
+(def raw raw-string)
+
+(defn attribute-key? [key]
+  (or (simple-keyword? key) (string? key)))
+
+(defn collection-attribute-fragment [values]
+  (->> values
+       (keep attribute-value-fragment)
+       (string/join " ")))
+
+(defn map-attribute-fragment [values]
+  (->> values
+       (keep (fn [[key value]]
+               (when (attribute-key? key)
+                 (when-some [value-fragment (attribute-value-fragment value)]
+                   (str (escape-attribute-value-fragment
+                          (if (keyword? key) (name key) key))
+                        ": " value-fragment ";")))))
+       (string/join " ")))
+
+(extend-protocol AttributeValueFragment
+  nil
+  (attribute-value-fragment [_] nil)
+
+  default
+  (attribute-value-fragment [this]
+    (cond
+      (boolean? this) (when this "")
+      (keyword? this) (escape-attribute-value-fragment (keyword-string this))
+      (fn? this) (attribute-value-fragment (this))
+      (satisfies? clojerl.IDeref this) (attribute-value-fragment (deref this))
+      (map? this) (map-attribute-fragment this)
+      (and (coll? this) (not (string? this)))
+      (collection-attribute-fragment this)
+      :else (escape-attribute-value-fragment (str this)))))
+
+(extend-protocol AttributeValue
+  nil
+  (append-attribute-fragment-to [_ writer _] writer)
+
+  default
+  (append-attribute-fragment-to [this writer attr-name]
+    (if (boolean? this)
+      (do
+        (when this (append-to writer " " attr-name))
+        writer)
+      (do
+        (when-some [value-fragment (attribute-value-fragment this)]
+          (append-to writer " " attr-name "=\"" value-fragment "\""))
+        writer))))
+
+(defn parse-head [head]
+  (let [head-name (name head)
+        head-ns (namespace head)
+        pound-index (string/index-of head-name "#")
+        dot-index (string/index-of head-name ".")
+        end-index (cond
+                    (and pound-index dot-index) (min pound-index dot-index)
+                    pound-index pound-index
+                    dot-index dot-index
+                    :else (count head-name))
+        tag (keyword head-ns (subs head-name 0 end-index))
+        class-before (when (and dot-index pound-index (< dot-index pound-index))
+                       (subs head-name (inc dot-index) pound-index))
+        dot-after-pound (when pound-index
+                          (string/index-of head-name "." (inc pound-index)))
+        head-id (when pound-index
+                  (subs head-name
+                        (inc pound-index)
+                        (or dot-after-pound (count head-name))))
+        class-after (cond
+                      dot-after-pound (subs head-name (inc dot-after-pound))
+                      (and dot-index (nil? pound-index))
+                      (subs head-name (inc dot-index))
+                      :else nil)
+        head-class (->> [class-before class-after]
+                        (keep identity)
+                        (map #(string/replace % "." " "))
+                        (string/join " "))]
+    [tag head-id (when (seq head-class) head-class)]))
+
+(defn make-head-attrs
+  ([head-id head-class]
+   (make-head-attrs head-id head-class nil))
+  ([head-id head-class attrs]
+   (let [attrs (or attrs {})
+         attrs (if (some? head-id) (assoc attrs :id head-id) attrs)]
+     (if (some? head-class)
+       (if (contains? attrs :class)
+         (assoc attrs :class [head-class (get attrs :class)])
+         (assoc attrs :class head-class))
+       (if (seq attrs) attrs nil)))))
+
+(defn quoted-attribute [attr-name value]
+  (when-some [value-fragment (attribute-value-fragment value)]
+    (str " " attr-name "=\"" value-fragment "\"")))
+
+(defn regular-attribute [attr-name value]
+  (if (boolean? value)
+    (when value (str " " attr-name))
+    (when-some [value-fragment (attribute-value-fragment value)]
+      (str " " attr-name "=\"" value-fragment "\""))))
+
+(defn attributes-fragment [attrs]
+  (when attrs
+    (apply str
+           (concat
+             (when (contains? attrs :id)
+               [(quoted-attribute "id" (get attrs :id))])
+             (when (contains? attrs :class)
+               [(quoted-attribute "class" (get attrs :class))])
+             (keep (fn [[key value]]
+                     (when (and (attribute-key? key)
+                                (not= key :id)
+                                (not= key :class))
+                       (regular-attribute
+                         (if (keyword? key) (name key) key)
+                         value)))
+                   attrs)))))
+
+(defn opening-tag-fragment [tag head-id head-class attrs]
+  (let [attrs (make-head-attrs head-id head-class attrs)]
+    (str "<" (name tag) (attributes-fragment attrs) ">")))
+
+(defrecord OpeningTag [tag head-id head-class attrs]
+  Token
+  (append-fragment-to [this writer] (append-to writer (fragment this)))
+  (fragment [_] (opening-tag-fragment tag head-id head-class attrs)))
+
+(def opening-tag-constructor ->OpeningTag)
+
+(defn ->OpeningTag [metadata tag head-id head-class attrs]
+  (with-meta (opening-tag-constructor tag head-id head-class attrs) metadata))
+
+(defrecord ClosingTag [tag]
+  Token
+  (append-fragment-to [this writer] (append-to writer (fragment this)))
+  (fragment [_] (str "</" (name tag) ">")))
+
+(def closing-tag-constructor ->ClosingTag)
+
+(defn ->ClosingTag [metadata tag]
+  (with-meta (closing-tag-constructor tag) metadata))
+
+(extend-protocol Token
+  nil
+  (append-fragment-to [_ writer] writer)
+  (fragment [_] "")
+
+  default
+  (append-fragment-to [this writer] (append-to writer (fragment this)))
+  (fragment [this]
+    (escape-text-fragment
+      (if (keyword? this) (keyword-string this) (str this)))))
+
+(defn make-opening-tag [metadata head attrs]
+  (let [[tag head-id head-class] (parse-head head)]
+    (->OpeningTag metadata tag head-id head-class attrs)))
+
+(defn attrs? [attrs]
+  (or (map? attrs) (nil? attrs)))
+
+(defn has-attrs? [elem]
+  (attrs? (nth elem 1 ::none)))
+
+(defn element-vector? [value]
+  (and (vector? value)
+       (keyword? (nth value 0 nil))
+       (not (::content (meta value)))))
+
+(defn alias-element? [elem]
+  (some? (namespace (nth elem 0))))
+
+(defn content-subvec
+  "Returns a subvector marked as element content."
+  ([value start] (content-subvec value start (count value)))
+  ([value start end]
+   (when (or (< end start) (< start 0) (> end (count value)))
+     (throw (clojerl.BadArgumentError. "Subvector index out of bounds.")))
+   (with-meta (subvec value start end) {::content true})))
+
+(defn apply-normalized-with-meta [f elem]
+  (let [metadata (meta elem)
+        head (nth elem 0)
+        attrs-present (has-attrs? elem)
+        attrs (when attrs-present (nth elem 1))
+        content (content-subvec elem (if attrs-present 2 1))
+        opening (make-opening-tag metadata head attrs)
+        merged-attrs (make-head-attrs (:head-id opening)
+                                      (:head-class opening)
+                                      attrs)]
+    (f metadata (:tag opening) merged-attrs content)))
+
+(defn merge-meta [value metadata]
+  (if (and value (satisfies? clojerl.IMeta value))
+    (with-meta value (merge (meta value) metadata))
+    value))
+
+(defn resolve-with-meta-fn [f]
+  (fn [metadata tag attrs content]
+    (merge-meta (f tag attrs content) metadata)))
+
+(defn apply-normalized [f elem]
+  "Calls f with normalized tag, attributes, and content."
+  (apply-normalized-with-meta (resolve-with-meta-fn f) elem))
+
+(defn resolve-alias-with-meta [metadata tag attrs content]
+  (merge-meta (resolve-alias tag attrs content) metadata))
+
+(defn resolve-alias-element [elem]
+  (apply-normalized-with-meta resolve-alias-with-meta elem))
+
+(defn alias-element-children [elem]
+  [(resolve-alias-element elem)])
+
+(def void-tags
+  #{:area :base :br :col :embed :hr :img :input :link :meta :param :source :track :wbr})
+
+(defn void-tag? [tag]
+  (contains? void-tags tag))
+
+(defn element-children [elem]
+  (let [metadata (meta elem)
+        head (nth elem 0)
+        attrs-present (has-attrs? elem)
+        attrs (when attrs-present (nth elem 1))
+        content (content-subvec elem (if attrs-present 2 1))
+        opening (make-opening-tag metadata head attrs)
+        tag (:tag opening)]
+    (if (and (void-tag? tag) (empty? content))
+      [opening]
+      [opening content (->ClosingTag metadata tag)])))
+
+(defn vector-children [value]
+  (if (element-vector? value)
+    (if (alias-element? value)
+      (alias-element-children value)
+      (element-children value))
+    value))
+
+(extend-protocol Node
+  nil
+  (branch? [_] false)
+  (children [_] nil)
+
+  default
+  (branch? [this]
+    (or (vector? this)
+        (satisfies? clojerl.IDeref this)
+        (fn? this)
+        (and (seqable? this)
+             (not (or (string? this)
+                      (keyword? this)
+                      (map? this)
+                      (set? this))))))
+  (children [this]
+    (cond
+      (vector? this) (vector-children this)
+      (fn? this) [(this)]
+      (satisfies? clojerl.IDeref this) [(deref this)]
+      (seqable? this) this
+      :else nil)))
+
+(def stack-max-depth 1024)
+
+(defn reduce-tree
+  "Reduces leaf nodes in depth-first order."
+  [branch-fn children-fn reduction-fn init root]
+  (loop [stack [[(seq [root]) 0]]
+         result init]
+    (if (reduced? result)
+      (deref result)
+      (if (empty? stack)
+        result
+        (let [[nodes depth] (peek stack)]
+          (if-let [nodes (seq nodes)]
+            (let [node (first nodes)
+                  remaining (next nodes)
+                  stack (conj (pop stack) [remaining depth])]
+              (if (branch-fn node)
+                (do
+                  (when (>= depth stack-max-depth)
+                    (throw (clojerl.BadArgumentError. "Stack max depth exceeded.")))
+                  (recur (conj stack [(seq (children-fn node)) (inc depth)]) result))
+                (recur stack (reduction-fn result node))))
+            (recur (pop stack) result)))))))
+
+(defn reduce-node [reduction-fn init root]
+  (reduce-tree branch? children reduction-fn init root))
+
+(defn append-fragment
+  ([writer] writer)
+  ([writer token] (append-fragment-to token writer)))
+
+(defn write-html [writer root]
+  (reduce-node append-fragment writer root))
+
+(defn html
+  "Returns the serialized HTML for a node tree."
+  [root]
+  (let [writer (new erlang.io.StringWriter)]
+    (write-html writer root)
+    (str writer)))
+
+(defn tree-serializer [branch-fn children-fn root]
+  (letfn [(walk [node]
+            (lazy-seq
+              (if (branch-fn node)
+                (mapcat walk (children-fn node))
+                [node])))]
+    (walk root)))
+
+(defn token-serializer [root]
+  (tree-serializer branch? children root))
+
+(defn html-serializer [root]
+  (map fragment (token-serializer root)))
+
+(def doctype-html5 (raw "<!DOCTYPE html>"))
+(def nbsp (raw "&nbsp;"))

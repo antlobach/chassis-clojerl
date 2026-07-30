@@ -1,0 +1,119 @@
+(ns dev.onionpancakes.chassis.tests.test-compiler
+  (:require [dev.onionpancakes.chassis.core :as chassis]
+            [dev.onionpancakes.chassis.compiler :as compiler]
+            [clojure.test :refer [deftest are is]]))
+
+(def example-constant "foobar")
+(defn example-delay [] (delay "foobar"))
+(defn example-fn [] "foobar")
+(def example-attrs {:foo "bar"})
+
+(defn example-elem-fn [arg]
+  [:p arg])
+
+(defmacro example-elem-macro [arg]
+  [:p arg])
+
+(defmacro example-elem-macro-nested [arg]
+  `(example-elem-macro ~arg))
+
+(defmethod chassis/resolve-alias ::Foo
+  [_ attrs content]
+  [:p.alias attrs content])
+
+(deftest compile-preserves-html
+  (are [node] (= (chassis/html (compiler/compile-node* node))
+                 (chassis/html (compiler/compile-node node))
+                 (chassis/html (compiler/compile* node))
+                 (chassis/html (compiler/compile node))
+                 (chassis/html node))
+    nil
+    0
+    0.0
+    \a
+    ""
+    "foobar"
+    :foo
+    true
+    {}
+    #{}
+    '()
+    []
+    #uuid "00000000-0000-0000-0000-000000000000"
+    [:div]
+    [:div nil "foo"]
+    [:div#foo.123 "foo"]
+    [:div [:p 123] [:p 456]]
+    [:div example-constant]
+    [:div (example-delay)]
+    [:div example-fn]
+    [:div {:foo example-constant}]
+    [:div example-attrs]
+    (map inc (range 5))
+    [:div (map inc (range 5))]
+    (example-elem-fn "foo")
+    [:div (example-elem-macro "foo")]
+    [:div (example-elem-macro-nested "foo")]
+    [:div (for [i (range 4)] [:p i])]
+    [:hr]
+    [:hr {:foo "bar"}]
+    [:hr "foo"]
+    [::Foo]
+    [::Foo nil "foobar"]
+    [:div [::Foo [::Foo "bar"]]]
+    [chassis/doctype-html5 [:div "foo" chassis/nbsp "bar"]]))
+
+(deftest compile-compacts-to-raw-string
+  (are [node] (let [result (compiler/compile node)]
+                (and (instance? dev.onionpancakes.chassis.core.RawString result)
+                     (= (chassis/fragment result) (chassis/html node))))
+    nil
+    0
+    0.0
+    \a
+    ""
+    :foo
+    true
+    #uuid "00000000-0000-0000-0000-000000000000"
+    [:div]
+    [:div#foo.bar "123"]
+    [:div {:foo "bar"} "123"]
+    [:div [:p "foo"] [:p "bar"]]
+    (example-elem-macro "123")
+    [::Foo nil "foo"]
+    [chassis/doctype-html5 [:div "foo" chassis/nbsp "bar"]]))
+
+(def ^:dynamic *example-dynamic* "foobar")
+
+(defn example-fn-dynamic []
+  (compiler/compile [:div nil *example-dynamic*]))
+
+(deftest compile-observes-dynamic-bindings
+  (is (= (chassis/html (example-fn-dynamic)) "<div>foobar</div>"))
+  (binding [*example-dynamic* "foobarbaz"]
+    (is (= (chassis/html (example-fn-dynamic)) "<div>foobarbaz</div>"))))
+
+
+(defmethod chassis/resolve-alias ::TestAliasContent
+  [_ _ content]
+  (is (vector? content))
+  (is (::chassis/content (meta content)))
+  [:p content])
+
+(deftest compile-preserves-alias-content
+  (are [node] (= (chassis/html (compiler/compile node))
+                 (chassis/html node))
+    [::TestAliasContent]
+    [::TestAliasContent 0]
+    [::TestAliasContent [:span "foobar"]]))
+
+(deftest warning-handlers-receive-ambiguous-elements
+  (let [events (atom [])
+        handler (fn [event] (swap! events conj event))
+        elem [:div :ambiguous "content"]]
+    (swap! compiler/warning-handlers conj handler)
+    (try
+      (compiler/send-warn-on-ambig-attrs! elem)
+      (is (= elem (::compiler/elem (first (deref events)))))
+      (finally
+        (swap! compiler/warning-handlers disj handler)))))

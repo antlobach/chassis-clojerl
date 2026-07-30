@@ -1,0 +1,108 @@
+(ns dev.onionpancakes.chassis.compiler
+  (:refer-clojure :exclude [compile])
+  (:require [dev.onionpancakes.chassis.core :as chassis]))
+
+(defprotocol AttributesCompilerExpr
+  (attrs-compiler-expr? [this]
+    "Returns true when a compiler expression is known to produce attributes."))
+
+(defprotocol CompilableForm
+  (evaluated? [this] "Returns true when the form is evaluated at runtime.")
+  (compilable? [this] "Returns true when the form can be compacted.")
+  (resolved [this] "Returns the resolved form."))
+
+(defprotocol CompilableNode
+  (branch? [this] "Returns true for a compilable branch node.")
+  (children [this] "Returns children of a compilable node."))
+
+(def ^:dynamic *evaluated* true)
+(def ^:dynamic *env* nil)
+(def ^:dynamic *form* nil)
+
+(defn compacted-form
+  "Serializes a node to one unescaped RawString token."
+  [node]
+  (chassis/raw (chassis/html node)))
+
+(defn compact
+  "Compacts a node tree to one RawString token."
+  [node]
+  (compacted-form node))
+
+(defn resolved-children [node]
+  (mapv resolved (children node)))
+
+(defn compile-node*
+  "Compacts the evaluated node while preserving its rendered HTML."
+  [node]
+  (compact node))
+
+(defn compile-node
+  "Compiles an evaluated node to a compact RawString token."
+  [node]
+  (compile-node* node))
+
+(defmacro compile*
+  "Compiles a node expression at runtime."
+  [node]
+  `(compile-node* ~node))
+
+(defmacro compile
+  "Compiles a node expression at runtime.
+
+  Clojerl has no JVM Compiler$Expr API. Runtime compaction preserves dynamic
+  vars, aliases, functions, derefs, and the complete Chassis rendering contract."
+  [node]
+  `(compile-node ~node))
+
+(extend-protocol AttributesCompilerExpr
+  nil
+  (attrs-compiler-expr? [_] false)
+  default
+  (attrs-compiler-expr? [this] (map? this)))
+
+(extend-protocol CompilableForm
+  nil
+  (evaluated? [_] false)
+  (compilable? [_] true)
+  (resolved [_] nil)
+
+  default
+  (evaluated? [_] *evaluated*)
+  (compilable? [_] true)
+  (resolved [this] this))
+
+(extend-protocol CompilableNode
+  nil
+  (branch? [_] false)
+  (children [_] nil)
+
+  default
+  (branch? [this] (chassis/branch? this))
+  (children [this] (chassis/children this)))
+
+(defn attrs-present? [elem]
+  (and (> (count elem) 1)
+       (chassis/attrs? (nth elem 1))))
+
+(defn attrs-absent? [elem]
+  (not (attrs-present? elem)))
+
+(defonce warning-handlers (atom #{}))
+
+(defn send-warn-on-ambig-attrs! [elem]
+  (let [event {::warning "Ambiguous attributes"
+               ::elem elem}]
+    (doseq [handler (deref warning-handlers)]
+      (handler event))
+    event))
+
+(defn warn-on-ambig-attrs [event]
+  (when (= (::warning event) "Ambiguous attributes")
+    (println (::warning event) (::elem event))))
+
+(defn set-warn-on-ambig-attrs! []
+  (swap! warning-handlers conj warn-on-ambig-attrs))
+
+(defn unset-warn-on-ambig-attrs! []
+  (swap! warning-handlers disj warn-on-ambig-attrs))

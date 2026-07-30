@@ -1,2 +1,5 @@
+_build/
+erl_crash.dump
+
 .cpcache
 target/

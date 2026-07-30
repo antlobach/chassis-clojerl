@@ -1,0 +1,5 @@
+{application, chassis,
+ [{vsn, "0.1.0"},
+  {description, "Fast Hiccup-style HTML rendering for Clojerl"},
+  {modules, []},
+  {applications, [kernel, stdlib, clojerl]}]}.
