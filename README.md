@@ -1,16 +1,15 @@
 # Chassis for Clojerl
 
-[![Run tests](https://github.com/antlobach/chassis/actions/workflows/run_tests.yml/badge.svg)](https://github.com/antlobach/chassis/actions/workflows/run_tests.yml)
+[![Run tests](https://github.com/antlobach/chassis-clojerl/actions/workflows/run_tests.yml/badge.svg)](https://github.com/antlobach/chassis-clojerl/actions/workflows/run_tests.yml)
 
-Chassis renders Hiccup-style vectors to HTML on the Erlang VM. This port targets Clojerl `0.9.0-2196.ab2c831` and Erlang/OTP 28.
+Chassis renders Hiccup-style vectors to HTML on the Erlang VM. This port targets Clojerl `0.9.1` and Erlang/OTP 28.
 
 ## Setup
 
 Keep the OTP 28-compatible Clojerl checkout next to this repository:
 
 ```sh
-git clone https://github.com/antlobach/clojerl.git ../clojerl
-git -C ../clojerl checkout ab2c83183fd6156ffe9c43bfcb2c3cc075f5e31f
+git clone --branch 0.9.1 --depth 1 https://github.com/antlobach/clojerl.git ../clojerl
 make -C ../clojerl compile
 make test
 ```
